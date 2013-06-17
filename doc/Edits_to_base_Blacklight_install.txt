@@ -1,0 +1,13 @@
+--------
+
+Had to change location for session_store:
+
+rake db:sessions:create
+rake db:migrate
+
+Modify config/initializers/session_store.rb from
+  (App)::Application.config.session_store :cookie_store, :key => 'xxx'
+to
+  (App)::Application.config.session_store :active_record_store
+
+---------

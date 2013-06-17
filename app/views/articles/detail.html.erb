@@ -1,0 +1,40 @@
+<% eds_connect %>
+
+ 
+
+<div class="row">
+
+  <div id="content" class="span9 show-document">
+
+    <%= render 'previous_next_doc' %>
+
+     
+  <% @page_title = "Detailed Record - Blacklight" %>
+
+  <%# this should be in a partial -%>
+  <div id="document" class="<%= render_document_class %>">
+    <div id="doc_<%= params[:dbid] %>_<%= params[:an] %>">
+    
+
+      <%# bookmark/folder functions -%>
+      <h1>Title</h1>
+
+      <div class="document">
+        <dl class="dl-horizontal dl-invert">
+	  <dt class="blacklight-author_display">Author:</dt>
+	  <dd class="blacklight-author_display">Example Author</dd>
+	  <dt class="blacklight-author_display">Author:</dt>
+	  <dd class="blacklight-author_display">Example Author</dd>
+	</dl>
+      </div>
+
+     
+    </div>
+  </div>
+
+  </div>
+
+  <div id="sidebar" class="span3">
+     Sidebar special!
+  </div><!--/span -->
+</div>

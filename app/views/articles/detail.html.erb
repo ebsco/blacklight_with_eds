@@ -68,15 +68,19 @@
 
   <div id="sidebar" class="span3">
 	    <% if has_any_fulltext?(record) %>
-	    <dt class="blacklight-fulltext">Full-Text:</dt>
+	    <% fulltextlinks = [] %>
+	    <dt class="blacklight-fulltext">Full-Text Options:</dt>
 	    <dd class="blacklight-fulltext">
 	    <% if has_pdf?(record) %>
-	      <%= link_to "PDF Full Text", show_pdf_link(record) %>
-	    <% elsif has_html?(record) %>
-	      <%= link_to "View HTML Full Text in EDS", show_best_fulltext_link(record), :target => "_blank" %>
-	    <% else %>
-	      <%= show_best_fulltext_link_detail(record) %>
+	      <% fulltextlinks.push(link_to("PDF Full Text", show_pdf_link(record))) %>
 	    <% end %>
+	    <% if has_html?(record) %>
+	      <% fulltextlinks.push(link_to("View HTML Full Text in EDS", show_plink(record), :target => "_blank")) %>
+	    <% end %>
+	    <% if has_fulltext?(record) %>
+	      <% fulltextlinks.push(show_best_fulltext_link_detail(record)) %>
+	    <% end %>
+	    <%= fulltextlinks.join("<br />").html_safe %>
 	    </dd>
 	    <% elsif has_ill?(record) %>
 	    <dt class="blacklight-ill">Interlibrary Loan:</dt>
@@ -85,4 +89,4 @@
   </div><!--/span -->
 </div>
 
-<%= render :partial => 'debug' %>
+<%# render :partial => 'debug' %>

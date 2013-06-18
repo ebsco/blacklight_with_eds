@@ -6,8 +6,8 @@ EdsInBlacklight::Application.routes.draw do
   devise_for :users
 
   match 'articles' => 'articles#index'
-  match 'articles/:dbid/:an' => 'articles#detail'
-  match 'articles/:dbid/:an/fulltext' => 'articles#fulltext'
+  match 'articles/:dbid/:an' => 'articles#detail', :constraints  => { :an => /[0-z\.]+/ }
+  match 'articles/:dbid/:an/fulltext' => 'articles#fulltext', :constraints  => { :an => /[0-z\.]+/ }
   # The priority is based upon order of creation:
   # first created -> highest priority.
 

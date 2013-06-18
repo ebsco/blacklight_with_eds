@@ -1054,7 +1054,7 @@ module Blacklight::ArticlesHelperBehavior
       return show_pdf_title_link(result)
     elsif has_html?(result)
       # this should point to detailed record when implemented
-      return show_plink(result)
+      return show_detail_link(result)
     elsif has_fulltext?(result)
       return best_customlink(result)
     end
@@ -1125,7 +1125,7 @@ module Blacklight::ArticlesHelperBehavior
   def show_pdf_title_link(result)
     title_pdf_link = ''
     if result['Header']['DbId'].present? and result['Header']['An'].present?
-      title_pdf_link << request.fullpath.split("?")[0] << "?" << generate_next_url << "&dbid=" << result['Header']['DbId'].to_s << "&an=" << result['Header']['An'].to_s
+      title_pdf_link << request.fullpath.split("?")[0] << "/" << result['Header']['DbId'].to_s << "/" << result['Header']['An'].to_s << "/fulltext"
     end
     new_link = Addressable::URI.unencode(title_pdf_link.to_s)
     return new_link

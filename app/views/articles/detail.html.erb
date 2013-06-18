@@ -1,8 +1,10 @@
 <% eds_connect %>
+<% recordArray = retrieve(params[:dbid].to_s,params[:an].to_s) %>
+<% if recordArray['Record'].present? %>
+<% record = recordArray['Record'] %>
+<% end %>
 
- 
-
-<div class="row">
+ <div class="row">
 
   <div id="content" class="span9 show-document">
 
@@ -17,14 +19,44 @@
     
 
       <%# bookmark/folder functions -%>
-      <h1>Title</h1>
+      <h1><%= show_title(record) %></h1>
 
       <div class="document">
         <dl class="dl-horizontal dl-invert">
-	  <dt class="blacklight-author_display">Author:</dt>
-	  <dd class="blacklight-author_display">Example Author</dd>
-	  <dt class="blacklight-author_display">Author:</dt>
-	  <dd class="blacklight-author_display">Example Author</dd>
+
+	  <% if has_authors?(record) %>
+	    <dt class="blacklight-author_display">Author:</dt>
+	    <dd class="blacklight-author_display"><%= show_authors(record) %></dd>
+	  <% end %>
+	  
+	  <% if has_titlesource?(record) %>
+	    <dt class="blacklight-author_display">Source:</dt>
+	    <dd class="blacklight-author_display"><%= show_titlesource(record) %></dd>
+	  <% elsif has_pubdate?(record) %>
+	    <dt class="blacklight-format">Published:</dt>
+	    <dd class="blacklight-format"><%= show_pubdate(record) %></dd>
+	  <% end %>
+	  
+	    <% if has_pubtype?(record) %>
+	    <dt class="blacklight-format">Format:</dt>
+	    <dd class="blacklight-format"><%= show_pubtype(record) %></dd>
+	    <% end %>
+	  
+	    <% if has_abstract?(record) %>
+	    <dt class="blacklight-abstract">Abstract:</dt>
+	    <dd class="blacklight-abstract"><%= show_abstract(record) %></dd>
+	    <% end %>  
+	    
+	    <% if has_subjects?(record) %>
+	    <dt class="blacklight-subject">Subjects:</dt>
+	    <dd class="blacklight-abstract"><%= show_subjects(record) %></dd>  
+	    <% end %>
+	    
+	    <% if has_full_text_on_screen?(record) %>
+	    <dt class="blacklight-subject">Full Text:</dt>
+	    <dd class="blacklight-abstract"><%= show_full_text_on_screen(record).html_safe %></dd>  
+	    <% end %>
+
 	</dl>
       </div>
 
@@ -35,6 +67,22 @@
   </div>
 
   <div id="sidebar" class="span3">
-     Sidebar special!
+	    <% if has_any_fulltext?(record) %>
+	    <dt class="blacklight-fulltext">Full-Text:</dt>
+	    <dd class="blacklight-fulltext">
+	    <% if has_pdf?(record) %>
+	      <%= link_to "PDF Full Text", show_pdf_link(record) %>
+	    <% elsif has_html?(record) %>
+	      <%= link_to "View HTML Full Text in EDS", show_best_fulltext_link(record), :target => "_blank" %>
+	    <% else %>
+	      <%= show_best_fulltext_link_detail(record) %>
+	    <% end %>
+	    </dd>
+	    <% elsif has_ill?(record) %>
+	    <dt class="blacklight-ill">Interlibrary Loan:</dt>
+	    <dd class="blacklight-ill"><%= show_ill(record) %></dd>  
+	    <% end %>
   </div><!--/span -->
 </div>
+
+<%= render :partial => 'debug' %>

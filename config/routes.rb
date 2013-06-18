@@ -7,6 +7,7 @@ EdsInBlacklight::Application.routes.draw do
 
   match 'articles' => 'articles#index'
   match 'articles/:dbid/:an' => 'articles#detail'
+  match 'articles/:dbid/:an/fulltext' => 'articles#fulltext'
   # The priority is based upon order of creation:
   # first created -> highest priority.
 

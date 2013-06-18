@@ -10,6 +10,7 @@ module Blacklight::ArticlesHelperBehavior
   require "addressable/uri" # for manipulating URLs in the interface
   require "htmlentities" # for deconding/encoding URLs
   require "cgi"
+  require 'open-uri'
   
   def html_unescape(text)
     return CGI.unescape(text)
@@ -24,23 +25,61 @@ module Blacklight::ArticlesHelperBehavior
   # API Interaction
   ###########
 
-  # do I need to authenticate if I have appropriate auth token?
-  # YOU PROBABLY DON'T NEED THIS if you check during the call to the API for other function
   def eds_connect
-    # check HERE to see if AUTH token in token.txt?
+    @debug_notes = ""
+
     @connection = EDSApi::ConnectionHandler.new(2)
     File.open(auth_file_location,"r") {|f|
         @api_userid = f.readline.strip
         @api_password = f.readline.strip
         @api_profile = f.readline.strip
     }
-    @connection.uid_init(@api_userid, @api_password, @api_profile).uid_authenticate(:json)
+    @connection.uid_init(@api_userid, @api_password, @api_profile)
+
+    if has_valid_auth_token?
+      @auth_token = getAuthToken
+    else
+      @debug_notes << "<p>New Authentication Token Generated in eds_connect</p>"
+      @connection.uid_authenticate(:json)
+      @auth_token = @connection.show_auth_token
+      writeAuthToken(@auth_token)
+    end
+    
+    if session[:session_key].present?
+      if session[:session_key].include?('Error')
+        @session_key = @connection.create_session(@auth_token)
+        session[:session_key] = @session_key
+        #return "Session key made: " + session_key.to_s
+        @debug_notes << "<p>New Session Key Generated (error message in existing session key)</p>"
+      else 
+        @session_key = session[:session_key]
+        #return "Reusing session key: " + session_key
+        #@debug_notes << "Found existing session key in eds_connect..."  << @session_key << "..."
+      end
+    else
+      @session_key = @connection.create_session(@auth_token)
+      session[:session_key] = @session_key
+      #return "Session key made: " + session_key.to_s
+      #@debug_notes << "Did not find existing session key in eds_connect...new token: " << @session_key << "..."
+      @debug_notes << "<p>New Session Key Generated (no session key found)</p>"
+    end
+    
   end
+
+  # after basic functions like SEARCH, INFO, and RETRIEVE, check to make sure a new session token wasn't generated
+  # if it was, use the new session key from here on out
+  def checkSessionCurrency
+    currentSessionKey = @connection.show_session_token
+    #@debug_notes << "<p>Comparing...</p><p>" << currentSessionKey << "<br />" << get_session_key << "</p>"
+    if currentSessionKey != get_session_key
+      session[:session_key] = currentSessionKey
+      @debug_notes << "<p>An API call to SEARCH, INFO, or RETRIEVE generated a new session token</p>"
+    end
+  end
+
 
   #generates parameters for the API call given URL parameters
   def generate_api_query(options)
-
-    #CHECK to see if OPTIONS are already encoded - if not, encode VALUEs as constructing the apiquery string
 
     #removing Rails and Blacklight parameters
     options.delete("action")
@@ -90,37 +129,17 @@ module Blacklight::ArticlesHelperBehavior
     searchtermindex = searchquery.index('query-1=') + 8
     searchquery.insert searchtermindex, searchquery_extras
     
-    #URL decoding.. should probably use a function for this.  don't know why I'm not
-    # , : ( ) - look at the Wiki to make sure
-
-    searchquery = searchquery.gsub('%28','(').gsub('%3A',':').gsub('%29',')')
-    
+    # , : ( ) - unencoding expected punctuation
+    searchquery = searchquery.gsub('%28','(').gsub('%3A',':').gsub('%29',')').gsub('%23',',')
+    #@debug_notes << "<p>" << searchquery.to_s << "</p>"
     return searchquery
   end
     
   def search(apiquery)
-    # instead of doing this, when constructing the apiquery's VALUES, URLencode it
-    apiquery.gsub!(' ', '+')
     
-    if has_valid_auth_token?
-      auth_token = getAuthToken
-    else
-      # separate this out - you need to be checking this independently of the authToken
-      # the session token may still be just fine - no need to get a new one, even if the AUTH token is expired
-      session_key = @connection.create_session
-      session[:session_key] = session_key
-      auth_token = @connection.show_auth_token
-      writeAuthToken(auth_token)
-    end
-    
-    if session[:session_key].present?
-      session_key = session[:session_key]
-    else
-      session_key = @connection.create_session
-    end
-
-    results = @connection.search(apiquery, session_key, auth_token, :json).to_hash
-    
+    results = @connection.search(apiquery, @session_key, @auth_token, :json).to_hash
+    checkSessionCurrency
+    #@debug_notes << "<p" << results.to_s << "</p>"
     session[:results] = results
     page_num = 1
     apiquery.split('&').each do |param|
@@ -129,52 +148,40 @@ module Blacklight::ArticlesHelperBehavior
         break
       end
     end
-    #@results = results;
   end
   
   #not implemented
   def retrieve(dbid, an)
-    session_key = @connection.create_session
-    record = @connection.retrieve(dbid, an, session_key, :json).to_hash
-    @connection.end_session(session_key)
-    session[:record] = record
+    #@debug_notes << "...retrieving " << dbid << "--" << an << "--ST: " << @session_key.to_s << "--AT: " << @auth_token.to_s << "..."
+    record = @connection.retrieve(dbid, an, @session_key, @auth_token, :json).to_hash
+    checkSessionCurrency
+    return record
   end
 
   def get_info
     numLimiters = 0
-    
-    # see comments on SEARCH - don't need to tie auth/session together
-    # this is repeated code - needs a function
-    if has_valid_auth_token?
-      auth_token = getAuthToken
-    else
-      session_key = @connection.create_session
-      session[:session_key] = session_key
-      auth_token = @connection.show_auth_token
-      writeAuthToken(auth_token)
-    end
-    
-    if session[:session_key].present?
-      session_key = session[:session_key]
-      #return "Reusing session key: " + session_key
-    else
-      session_key = @connection.create_session
-      session[:session_key] = session_key
-      #return "Session key made: " + session_key.to_s
-    end
-
+    #session[:debug_notes] = "Info is getting: " << @session_key << " and " << @auth_token << " and JSON"
     #before editing this, check with Don and Michelle
-    session[:info] = @connection.info(session_key, auth_token, :json).to_hash
-    #@connection.end_session(session_key)
+    session[:info] = @connection.info(@session_key, @auth_token, :json).to_hash
+    checkSessionCurrency
 
-    if session[:info]['AvailableSearchCriteria']['AvailableLimiters'].present?
-      session[:info]['AvailableSearchCriteria']['AvailableLimiters'].each do |limiter|
-        if limiter["Type"] == "select"
-          numLimiters += 1
+    if session[:info].present?
+      if session[:info]['AvailableSearchCriteria'].present?
+        if session[:info]['AvailableSearchCriteria']['AvailableLimiters'].present?
+          session[:info]['AvailableSearchCriteria']['AvailableLimiters'].each do |limiter|
+            if limiter["Type"] == "select"
+              numLimiters += 1
+            end
+          end
         end
       end
     end
+
     session[:numLimiters] = numLimiters
+  end
+  
+  def debugNotes
+    return @debug_notes
   end
 
   ############
@@ -186,8 +193,8 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   def get_session_key
-    if session[:session_key].present? && session[:session_key_timeout].present?
-      return session[:session_key].to_s + "---" + session[:session_key_timeout].to_s + Time.now.to_i.to_s
+    if session[:session_key].present?
+      return session[:session_key].to_s
     else
       return "no session key"
     end
@@ -222,10 +229,10 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   def has_valid_auth_token?
-    token = timeout = timestamp = api_user = ''
+    token = timeout = timestamp = ''
     if token_file_exists?
       File.open(token_file_location,"r") {|f|
-        if f.readlines.size <= 3
+        if f.readlines.size <= 2
           return false
         end
       }
@@ -233,15 +240,12 @@ module Blacklight::ArticlesHelperBehavior
           token = f.readline.strip
           timeout = f.readline.strip
           timestamp = f.readline.strip
-          api_user = f.readline.strip
       }
     else
       return false 
     end
     if Time.now.getutc.to_i < timestamp.to_i
-      if api_user == @api_userid
-        return true
-      end
+      return true
     else
       return false
     end
@@ -253,7 +257,6 @@ module Blacklight::ArticlesHelperBehavior
         token = f.readline.strip
         timeout = f.readline.strip
         timestamp = f.readline.strip
-        user = f.readline.strip
     }
     return Time.at(timestamp.to_i)
   end
@@ -269,21 +272,18 @@ module Blacklight::ArticlesHelperBehavior
         f.write(auth_token)
         f.write("\n" + timeout)
         f.write("\n" + timestamp)
-        f.write("\n" + @api_userid)
       }
     else
       File.new(token_file_location,"w") {|f|
         f.write(auth_token)
         f.write("\n" + timeout)
         f.write("\n" + timestamp)
-        f.write("\n" + @api_userid)
       }
       File.chmod(664,token_file_location)
       File.open(token_file_location,"w") {|f|
         f.write(auth_token)
         f.write("\n" + timeout)
         f.write("\n" + timestamp)
-        f.write("\n" + @api_userid)
       }
     end
   end
@@ -292,8 +292,6 @@ module Blacklight::ArticlesHelperBehavior
     token = ''
     timeout = ''
     timestamp = ''
-    message = ''
-    user = ''
     if has_valid_auth_token?
       File.open(token_file_location,"r") {|f|
         token = f.readline.strip
@@ -336,17 +334,6 @@ module Blacklight::ArticlesHelperBehavior
     end
   end
 
-  # UNUSED - was obviated when SetView was introduced in 13.1
-  def generate_next_url_newvar(newParam,value)
-  newParams = {newParam => value}
-    uri = Addressable::URI.parse(request.fullpath.split("?")[0] + "?" + generate_next_url)
-    newUri = uri.query_values.merge newParams
-    uri.query_values = newUri
-    newString = uri.query.to_s
-    return newString
-  end
-      
-  # users to CHANGE various elements in the URL from "generate next URL" - particularly for Author / Subject links
   # should replace this functionality with AddQuery/RemoveQuery actions
   def generate_next_url_newvar_from_hash(variablehash)
     uri = Addressable::URI.parse(request.fullpath.split("?")[0] + "?" + generate_next_url)
@@ -521,7 +508,7 @@ module Blacklight::ArticlesHelperBehavior
         appliedfacet.each do |key, val|
           if key == "FacetValuesWithAction"
             val.each do |facetValue|
-              appliedfacets << '<span class="appliedFilter constraint filter filter-format"><span class="filterName">' + facetValue['FacetValue']['Id'].to_s.titleize + '</span><span class="filterValue">' + facetValue['FacetValue']['Value'].to_s.titleize + '</span><a class="btnRemove imgReplace" href="' + request.fullpath.split("?")[0] + "?" + generate_next_url + "&eds_action=" + facetValue['RemoveAction'].to_s + '">Remove filter</a></span>' 
+              appliedfacets << '<span class="appliedFilter constraint filter filter-format"><span class="filterName">' + facetValue['FacetValue']['Id'].to_s.titleize + '</span><span class="filterValue">' + facetValue['FacetValue']['Value'].to_s.titleize + '</span><a class="btnRemove imgReplace" href="' + request.fullpath.split("?")[0] + "?" + generate_next_url + "&eds_action=" + CGI.escape(facetValue['RemoveAction'].to_s) + '">Remove filter</a></span>' 
             end
           end
         end
@@ -634,7 +621,7 @@ module Blacklight::ArticlesHelperBehavior
             val.each do |facetValue|
               # the LINK should NOT be escaped
               # URL encode LINK - preserve the slashes without breaking the link - urlencode VALUES of parameters for escape character functionality
-              facets = facets + '<li><a class="facet_select" href="' + request.fullpath.split("?")[0] + "?" + generate_next_url + "&eds_action=" + facetValue['AddAction'].to_s + '">' + facetValue['Value'].to_s.titleize + '</a> <span class="count">' + facetValue['Count'].to_s + '</li>'
+              facets = facets + '<li><a class="facet_select" href="' + request.fullpath.split("?")[0] + "?" + generate_next_url + "&eds_action=" + CGI.escape(facetValue['AddAction'].to_s) + '">' + facetValue['Value'].to_s.titleize + '</a> <span class="count">' + facetValue['Count'].to_s + '</li>'
             end
           end
         end
@@ -708,7 +695,7 @@ module Blacklight::ArticlesHelperBehavior
   def has_titlesource?(result)
     if result['Items'].present?
       result['Items'].each do |item|
-        if item['Group'] == "Src"
+        if item['Group'].downcase == "src"
           return true
         end
       end
@@ -722,7 +709,7 @@ module Blacklight::ArticlesHelperBehavior
     if result['Items'].present?
       result['Items'].each do |item|
         # turn to case insensitive (also look at other matching in autors, title, etc.)
-        if item['Group'] == "Src" and flag == 0
+        if item['Group'].downcase == "src" and flag == 0
           source = processAPItags(item['Data'].to_s)
           flag = 1
         end
@@ -757,7 +744,11 @@ module Blacklight::ArticlesHelperBehavior
               if subject['SubjectFull']
                 url_vars = {"q" => '"' + subject['SubjectFull'].to_s + '"', "search_field" => "subject"}
                 link2 = generate_next_url_newvar_from_hash(url_vars)
-                subject_link = '<a href="' + request.fullpath.split("?")[0] + "?" + link2 + '">' + subject['SubjectFull'].to_s + '</a>'
+                if params[:dbid].present?
+                  subject_link = '<a href="' + request.fullpath.split("/" + params[:dbid])[0] + "?" + link2 + '">' + subject['SubjectFull'].to_s + '</a>'
+                else
+                  subject_link = '<a href="' + request.fullpath.split("?")[0] + "?" + link2 + '">' + subject['SubjectFull'].to_s + '</a>'
+                end
                 subject_array.push(subject_link)
               end
             end
@@ -905,6 +896,15 @@ module Blacklight::ArticlesHelperBehavior
   end
 
   def has_authors?(result)
+    if result['Items'].present?
+      result['Items'].each do |item|
+        if item['Group'].present?
+          if item['Group'] == "Au"
+            return true
+          end
+        end
+      end
+    end
     if result['RecordInfo'].present?
       if result['RecordInfo']['BibRecord'].present?
         if result['RecordInfo']['BibRecord']['BibRelationships'].present?
@@ -918,21 +918,32 @@ module Blacklight::ArticlesHelperBehavior
         end
       end
     end
-    if result['Items'].present?
-      result['Items'].each do |item|
-        if item['Group'].present?
-          if item['Group'] == "Au"
-            return true
-          end
-        end
-      end
-    end
     return false
   end
 
   # this should make use of AddQuery / RemoveQuery - but there might be a conflict with the "q" variable  
   def show_authors(result)
     author_array = []
+    if result['Items'].present?
+      flag = 0
+      authorString = []
+      result['Items'].each do |item|
+        if item['Group'].present?
+          if item['Group'] == "Au"
+            # let Don and Michelle know what this cleaner function does
+            newAuthor = processAPItags(item['Data'].to_s)
+            # i'm duplicating the semicolor - fix
+            newAuthor.gsub!("<br />","; ")
+            authorString.push(newAuthor)
+            flag = 1
+          end
+        end
+      end
+      if flag == 1
+        return authorString.join("; ").html_safe
+      end
+    end
+
     if result['RecordInfo'].present?
       if result['RecordInfo']['BibRecord'].present?
         if result['RecordInfo']['BibRecord']['BibRelationships'].present?
@@ -954,26 +965,6 @@ module Blacklight::ArticlesHelperBehavior
         end
       end
     end
-    # flip these for priority
-    if result['Items'].present?
-      flag = 0
-      authorString = []
-      result['Items'].each do |item|
-        if item['Group'].present?
-          if item['Group'] == "Au"
-            # let Don and Michelle know what this cleaner function does
-            newAuthor = processAPItags(item['Data'].to_s)
-            # i'm duplicating the semicolor - fix
-            newAuthor.gsub!("<br />","; ")
-            authorString.push(newAuthor)
-            flag = 1
-          end
-        end
-      end
-      if flag == 1
-        return authorString.join("; ").html_safe
-      end
-    end
     return ''
   end
 
@@ -983,8 +974,7 @@ module Blacklight::ArticlesHelperBehavior
 	
   def show_title(result)
     result['Items'].each do |item|
-      # name is not consistent - but the group is consistent. For this, item['Group'] == 'ti'
-      if item['Name'] == 'Title'
+      if item['Group'] == 'Ti'
         return HTMLEntities.new.decode(item['Data']).html_safe
       end
     end
@@ -1008,6 +998,30 @@ module Blacklight::ArticlesHelperBehavior
     @results.inspect
   end
 
+  def has_full_text_on_screen?(result)
+    if result['FullText'].present?
+      if result['FullText']['Text'].present?
+        if result['FullText']['Text']['Availability'].present?
+          if result['FullText']['Text']['Availability'] == "1"
+            return true
+          end
+        end
+      end
+    end
+  end
+  
+  def show_full_text_on_screen(result)
+    if result['FullText'].present?
+      if result['FullText']['Text'].present?
+        if result['FullText']['Text']['Availability'].present?
+          if result['FullText']['Text']['Availability'] == "1"
+            return HTMLEntities.new.decode(result['FullText']['Text']['Value'])
+          end
+        end
+      end
+    end
+  end
+
   ################
   # Full Text Links
   ################
@@ -1021,6 +1035,18 @@ module Blacklight::ArticlesHelperBehavior
       return true
     end
     return false
+  end
+
+  def show_detail_link(result)
+    link = ""
+    if result['Header'].present?
+      if result['Header']['DbId'].present?
+        if result['Header']['An'].present?
+          link << 'articles/' << result['Header']['DbId'].to_s << '/' << result['Header']['An'] << '/'
+        end
+      end
+    end
+    return link
   end
 
   def show_best_fulltext_link(result)

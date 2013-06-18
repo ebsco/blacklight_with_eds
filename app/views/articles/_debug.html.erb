@@ -1,13 +1,12 @@
 <div id="debug" style="clear: both;">
   <h4>Debug</h4>
-  <h5>File existance</h5>
-  <p>Does it exist?  <%= token_file_exists? %></p>
-  <p>Is there a valid token?  <%= has_valid_auth_token? %></p>
+  <h5>Token / Session Key Info</h5>
+  <p>Auth_Token: <%= getAuthToken %>
   <% if has_valid_auth_token? %>
-    <%= get_token_timeout %>
+    <%= "(Expires " + get_token_timeout.to_s + ")" %>
   <% end %>
-  <h5>Info</h5>
-   <h5>Auth Token Testing</h5>
-  <p>Auth_Token: <%= getAuthToken %></p>
-  <p>Session_Token: <%= session[:session_key] %></p> 
+  </p>
+  <p>Session_Token: <%= session[:session_key] %></p>
+  <h5>Debug Notes</h5>
+  <p>Notes: <%= debugNotes.html_safe %></p>
 </div>

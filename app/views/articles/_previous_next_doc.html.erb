@@ -1,6 +1,6 @@
 <%#Using the Bootstrap Pagination class  -%>
 	<div class="well" id="previousNextDocument">
-<% if params[:resultId].present? %>
+<% if params[:resultId].present? and session[:results].present? %>
 <% if params[:resultId] != "1" %>
       <% prevId = params[:resultId].to_i - 1 %>
           <%= link_to "Previous", request.fullpath.split("/" + params[:dbid])[0] + "/switch/?" + generate_next_url + "&resultId=" + prevId.to_s %> |
@@ -13,7 +13,7 @@
 <% end %>
 
 <div class="pull-right">
-      <% if params[:resultId].present? %>
+      <% if params[:resultId].present? and session[:results].present? %>
       <%= link_to "Back to Search Results", request.fullpath.split("/" + params[:dbid])[0] + "?" + generate_next_url %>
       |
       <% end %>

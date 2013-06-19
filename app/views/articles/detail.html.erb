@@ -1,5 +1,5 @@
 <% eds_connect %>
-<% recordArray = retrieve(params[:dbid].to_s,params[:an].to_s) %>
+<% recordArray = retrieve(params[:dbid].to_s,params[:an].to_s,termsToHighlight(params[:highlight])) %>
 <% if recordArray['Record'].present? %>
 <% record = recordArray['Record'] %>
 <% end %>
@@ -11,7 +11,7 @@
     <%= render 'previous_next_doc' %>
 
      
-  <% @page_title = "Detailed Record - Blacklight" %>
+  <% @page_title = show_title(record) << " - Detailed Record - Blacklight" %>
 
   <%# this should be in a partial -%>
   <div id="document" class="<%= render_document_class %>">
@@ -53,6 +53,7 @@
 	    <% end %>
 	    
 	    <% if has_full_text_on_screen?(record) %>
+	    <a name="fulltext"></a>
 	    <dt class="blacklight-subject">Full Text:</dt>
 	    <dd class="blacklight-abstract"><%= show_full_text_on_screen(record).html_safe %></dd>  
 	    <% end %>
@@ -67,6 +68,16 @@
   </div>
 
   <div id="sidebar" class="span3">
+    <div class="record-image-detail">
+    <% if has_coverimage?(record) %>
+      <img src="<%= show_coverimage_link(record) %>" border="0" />
+    <% else %>
+      <span class="pt-icon pt-<%= show_pubtypeid(record) %>"></span>
+    <% end %>
+    <br />
+    <%= show_pubtype(record) %>
+    </div>
+
 	    <% if has_any_fulltext?(record) %>
 	    <% fulltextlinks = [] %>
 	    <dt class="blacklight-fulltext">Full-Text Options:</dt>
@@ -75,7 +86,7 @@
 	      <% fulltextlinks.push(link_to("PDF Full Text", show_pdf_link(record))) %>
 	    <% end %>
 	    <% if has_html?(record) %>
-	      <% fulltextlinks.push(link_to("View HTML Full Text in EDS", show_plink(record), :target => "_blank")) %>
+	      <% fulltextlinks.push(link_to("HTML Full Text", "#fulltext")) %>
 	    <% end %>
 	    <% if has_fulltext?(record) %>
 	      <% fulltextlinks.push(show_best_fulltext_link_detail(record)) %>
@@ -85,7 +96,11 @@
 	    <% elsif has_ill?(record) %>
 	    <dt class="blacklight-ill">Interlibrary Loan:</dt>
 	    <dd class="blacklight-ill"><%= show_ill(record) %></dd>  
-	    <% end %>
+	  <% end %>
+	  <br />
+	  <dt class="blacklight-fulltext">Other Options:</dt>
+	    <dd class="blacklight-fulltext"><%= link_to("View Record in EDS",show_plink(record),:target => "_blank") %></dd>
+	    
   </div><!--/span -->
 </div>
 

@@ -151,11 +151,56 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   #not implemented
-  def retrieve(dbid, an)
+  def retrieve(dbid, an, highlight)
     #@debug_notes << "...retrieving " << dbid << "--" << an << "--ST: " << @session_key.to_s << "--AT: " << @auth_token.to_s << "..."
-    record = @connection.retrieve(dbid, an, @session_key, @auth_token, :json).to_hash
+    record = @connection.retrieve(dbid, an, highlight, @session_key, @auth_token, :json).to_hash
     checkSessionCurrency
     return record
+  end
+  
+  def termsToHighlight(terms = "")
+    if terms.present?
+      words = terms.split(/\W+/)
+      return words.join(",").to_s
+    else
+      return ""
+    end
+  end
+  
+  def switch_link(params)
+
+    link = ""
+    if params[:resultId].to_i > (params[:pagenumber].to_i * params[:resultsperpage].to_i)
+      nextPage = params[:pagenumber].to_i + 1
+      newParams = generate_next_url.to_s << "&eds_action=GoToPage(" << nextPage.to_s << ")"
+      newParamsHash = CGI::parse(newParams)
+      options = generate_api_query(newParamsHash)
+      search(options)
+    elsif params[:resultId].to_i < (((params[:pagenumber].to_i - 1) * params[:resultsperpage].to_i) + 1)
+      nextPage = params[:pagenumber].to_i - 1
+      newParams = generate_next_url.to_s << "&eds_action=GoToPage(" << nextPage.to_s << ")"
+      newParamsHash = CGI::parse(newParams)
+      options = generate_api_query(newParamsHash)
+      search(options)
+    end  
+
+    if session[:results]['SearchResult']['Data']['Records'].present?
+      session[:results]['SearchResult']['Data']['Records'].each do |result|
+        #link << "<p>Matching result number " << show_resultid(result).to_s << " to " << params[:resultId].to_s << "</p>"
+        nextId = show_resultid(result).to_s
+        if nextId == params[:resultId].to_s
+          #link << "<p><strong>MATCHED: </strong>"
+          nextAn = show_an(result).to_s
+          nextDbId = show_dbid(result).to_s
+          nextrId = params[:resultId].to_s
+          nextHighlight = params[:q].to_s
+          #link << nextAn.to_s << " - " << nextDbId.to_s << " - " << nextrId.to_s << " - " << nextHighlight.to_s << "</p>"
+          link = request.fullpath.split("/switch")[0].to_s + "/" + nextDbId.to_s + "/" + nextAn.to_s + "/?resultId=" + nextrId.to_s + "&highlight=" + nextHighlight.to_s
+        end        
+      end
+    end
+    return link.to_s
+
   end
 
   def get_info
@@ -743,7 +788,7 @@ module Blacklight::ArticlesHelperBehavior
             result['RecordInfo']['BibRecord']['BibEntity']['Subjects'].each do |subject|
               if subject['SubjectFull']
                 url_vars = {"q" => '"' + subject['SubjectFull'].to_s + '"', "search_field" => "subject"}
-                link2 = generate_next_url_newvar_from_hash(url_vars)
+                link2 = generate_next_url_newvar_from_hash(url_vars) << "&eds_action=GoToPage(1)"
                 if params[:dbid].present?
                   subject_link = '<a href="' + request.fullpath.split("/" + params[:dbid])[0] + "?" + link2 + '">' + subject['SubjectFull'].to_s + '</a>'
                 else
@@ -1037,12 +1082,37 @@ module Blacklight::ArticlesHelperBehavior
     return false
   end
 
-  def show_detail_link(result)
+  def show_an(result)
+    if result['Header'].present?
+        if result['Header']['An'].present?
+          an = result['Header']['An'].to_s
+        end
+    end
+    return an    
+  end
+
+  def show_dbid(result)
+    if result['Header'].present?
+        if result['Header']['DbId'].present?
+          dbid = result['Header']['DbId'].to_s
+        end
+    end
+    return dbid    
+  end
+
+  def show_detail_link(result, resultId = "0", highlight = "")
     link = ""
     if result['Header'].present?
       if result['Header']['DbId'].present?
         if result['Header']['An'].present?
           link << 'articles/' << result['Header']['DbId'].to_s << '/' << result['Header']['An'] << '/'
+          if resultId.to_i > "0".to_i and highlight != "" 
+            link << '?resultId=' << resultId.to_s << '&highlight=' << highlight.to_s
+          elsif resultId.to_i > "0".to_i
+            link << '?resultId=' << resultId.to_s
+          elsif highlight != ""
+            link << '?highlight' << highlight.to_s
+          end
         end
       end
     end

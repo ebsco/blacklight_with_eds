@@ -57,7 +57,7 @@ GEM
       warden (~> 1.2.1)
     devise-guests (0.3.1)
       devise
-    ebsco-discovery-service-api (1.0)
+    ebsco-discovery-service-api (1.0.1)
     erubis (2.7.0)
     execjs (1.4.0)
       multi_json (~> 1.0)
@@ -146,7 +146,7 @@ DEPENDENCIES
   coffee-rails (~> 3.2.1)
   devise
   devise-guests (~> 0.3)
-  ebsco-discovery-service-api (= 1.0)
+  ebsco-discovery-service-api (= 1.0.1)
   htmlentities
   jquery-rails
   rails (= 3.2.11)

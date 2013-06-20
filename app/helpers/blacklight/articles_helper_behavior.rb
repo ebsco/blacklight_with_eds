@@ -167,23 +167,25 @@ module Blacklight::ArticlesHelperBehavior
     end
   end
   
-  def switch_link(params)
+  def switch_link(params,qurl)
 
     link = ""
     if params[:resultId].to_i > (params[:pagenumber].to_i * params[:resultsperpage].to_i)
       nextPage = params[:pagenumber].to_i + 1
-      newParams = generate_next_url.to_s << "&eds_action=GoToPage(" << nextPage.to_s << ")"
-      newParamsHash = CGI::parse(newParams)
-      options = generate_api_query(newParamsHash)
+      newParams = params
+      newParams[:eds_action] = "GoToPage(" + nextPage.to_s + ")"
+#      link = newParams.to_s
+      options = generate_api_query(newParams)
       search(options)
     elsif params[:resultId].to_i < (((params[:pagenumber].to_i - 1) * params[:resultsperpage].to_i) + 1)
       nextPage = params[:pagenumber].to_i - 1
-      newParams = generate_next_url.to_s << "&eds_action=GoToPage(" << nextPage.to_s << ")"
-      newParamsHash = CGI::parse(newParams)
-      options = generate_api_query(newParamsHash)
+      newParams = params
+      newParams[:eds_action] = "GoToPage(" + nextPage.to_s + ")"
+#      link = newParams.to_s
+      options = generate_api_query(newParams)
       search(options)
     end  
-
+#    link << "<p>" << session[:results]['SearchResult'].to_s << "</p>"
     if session[:results]['SearchResult']['Data']['Records'].present?
       session[:results]['SearchResult']['Data']['Records'].each do |result|
         #link << "<p>Matching result number " << show_resultid(result).to_s << " to " << params[:resultId].to_s << "</p>"

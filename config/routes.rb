@@ -10,6 +10,8 @@ EdsInBlacklight::Application.routes.draw do
   match 'articles/:dbid/:an/fulltext' => 'articles#fulltext', :constraints  => { :an => /[^\/]+/ }
   match 'articles/switch/' => 'articles#recordSwitch'
   
+  match 'combined' => 'combined#index'
+  
   # The priority is based upon order of creation:
   # first created -> highest priority.
 

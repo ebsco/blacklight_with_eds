@@ -1,5 +1,20 @@
 # -*- encoding : utf-8 -*-
 
+##
+# Copyright 2013 EBSCO Information Services
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
 module Blacklight::ArticlesHelperBehavior
 
   ############
@@ -16,6 +31,7 @@ module Blacklight::ArticlesHelperBehavior
     return CGI.unescape(text)
   end
 
+  # cleans response from EBSCO API
   def processAPItags(apiString)
     processed = HTMLEntities.new.decode apiString
     return processed.html_safe
@@ -25,9 +41,10 @@ module Blacklight::ArticlesHelperBehavior
   # API Interaction
   ###########
 
+  # called at the beginning of every page load
   def eds_connect
-    @debug_notes = ""
 
+    # creates EDS API connection object, initializing it with application login credentials
     @connection = EDSApi::ConnectionHandler.new(2)
     File.open(auth_file_location,"r") {|f|
         @api_userid = f.readline.strip
@@ -36,49 +53,44 @@ module Blacklight::ArticlesHelperBehavior
     }
     @connection.uid_init(@api_userid, @api_password, @api_profile)
 
+    # generate a new authentication token if their isn't one or the one stored on server is invalid or expired
     if has_valid_auth_token?
       @auth_token = getAuthToken
     else
-      @debug_notes << "<p>New Authentication Token Generated in eds_connect</p>"
       @connection.uid_authenticate(:json)
       @auth_token = @connection.show_auth_token
       writeAuthToken(@auth_token)
     end
     
+    # generate a new session key if there isn't one, or if the existing one is invalid
     if session[:session_key].present?
       if session[:session_key].include?('Error')
         @session_key = @connection.create_session(@auth_token)
         session[:session_key] = @session_key
-        #return "Session key made: " + session_key.to_s
-        @debug_notes << "<p>New Session Key Generated (error message in existing session key)</p>"
       else 
         @session_key = session[:session_key]
-        #return "Reusing session key: " + session_key
-        #@debug_notes << "Found existing session key in eds_connect..."  << @session_key << "..."
       end
     else
       @session_key = @connection.create_session(@auth_token)
       session[:session_key] = @session_key
-      #return "Session key made: " + session_key.to_s
-      #@debug_notes << "Did not find existing session key in eds_connect...new token: " << @session_key << "..."
-      @debug_notes << "<p>New Session Key Generated (no session key found)</p>"
     end
-    
+
+    # at this point, we should have a valid authentication and session token
+
   end
 
   # after basic functions like SEARCH, INFO, and RETRIEVE, check to make sure a new session token wasn't generated
   # if it was, use the new session key from here on out
   def checkSessionCurrency
     currentSessionKey = @connection.show_session_token
-    #@debug_notes << "<p>Comparing...</p><p>" << currentSessionKey << "<br />" << get_session_key << "</p>"
     if currentSessionKey != get_session_key
       session[:session_key] = currentSessionKey
-      @debug_notes << "<p>An API call to SEARCH, INFO, or RETRIEVE generated a new session token</p>"
     end
   end
 
-
-  #generates parameters for the API call given URL parameters
+  # generates parameters for the API call given URL parameters
+  # options is usually the params hash
+  # this function strips out unneeded parameters and reformats them to form a string that the API accepts as input
   def generate_api_query(options)
 
     #removing Rails and Blacklight parameters
@@ -87,12 +99,12 @@ module Blacklight::ArticlesHelperBehavior
     options.delete("utf8")
 
     #translate Blacklight search_field into query index
-    if params["search_field"].present?
-      if params["search_field"] == "author"
+    if options["search_field"].present?
+      if options["search_field"] == "author"
         fieldcode = "AU:"
-      elsif params["search_field"] == "subject"
+      elsif options["search_field"] == "subject"
         fieldcode = "SU:"
-      elsif params["search_field"] == "title"
+      elsif options["search_field"] == "title"
         fieldcode = "TI:"
       else
         fieldcode = ""
@@ -131,30 +143,26 @@ module Blacklight::ArticlesHelperBehavior
     
     # , : ( ) - unencoding expected punctuation
     searchquery = searchquery.gsub('%28','(').gsub('%3A',':').gsub('%29',')').gsub('%23',',')
-    #@debug_notes << "<p>" << searchquery.to_s << "</p>"
     return searchquery
   end
     
-  def search(apiquery)
-    
+  # main search function.  accepts string to be tacked on to API endpoint URL
+  def search(apiquery)    
     results = @connection.search(apiquery, @session_key, @auth_token, :json).to_hash
+    
+    #update session_key if new one was generated in the call
     checkSessionCurrency
-    #@debug_notes << "<p" << results.to_s << "</p>"
+
+    #results are stored in the session to facilitate faster navigation between detailed records and results list without needed a new API call
     session[:results] = results
-    page_num = 1
-    apiquery.split('&').each do |param|
-      if param.start_with?('pagenumber=')
-        page_num = param.tr('pagenumber=', '').to_i
-        break
-      end
-    end
   end
   
-  #not implemented
-  def retrieve(dbid, an, highlight)
-    #@debug_notes << "...retrieving " << dbid << "--" << an << "--ST: " << @session_key.to_s << "--AT: " << @auth_token.to_s << "..."
+  def retrieve(dbid, an, highlight = "")
     record = @connection.retrieve(dbid, an, highlight, @session_key, @auth_token, :json).to_hash
+
+    #update session_key if new one was generated in the call
     checkSessionCurrency
+
     return record
   end
   
@@ -167,36 +175,34 @@ module Blacklight::ArticlesHelperBehavior
     end
   end
   
+  # helper function for iterating through results from 
   def switch_link(params,qurl)
 
-    link = ""
+    # check to see if the user is navigating to a record that was not included in the current page of results
+    # if so, run a new search API call, getting the appropriate page of results
     if params[:resultId].to_i > (params[:pagenumber].to_i * params[:resultsperpage].to_i)
       nextPage = params[:pagenumber].to_i + 1
       newParams = params
       newParams[:eds_action] = "GoToPage(" + nextPage.to_s + ")"
-#      link = newParams.to_s
       options = generate_api_query(newParams)
       search(options)
     elsif params[:resultId].to_i < (((params[:pagenumber].to_i - 1) * params[:resultsperpage].to_i) + 1)
       nextPage = params[:pagenumber].to_i - 1
       newParams = params
       newParams[:eds_action] = "GoToPage(" + nextPage.to_s + ")"
-#      link = newParams.to_s
       options = generate_api_query(newParams)
       search(options)
     end  
-#    link << "<p>" << session[:results]['SearchResult'].to_s << "</p>"
+
+    # generate the link for the target record
     if session[:results]['SearchResult']['Data']['Records'].present?
       session[:results]['SearchResult']['Data']['Records'].each do |result|
-        #link << "<p>Matching result number " << show_resultid(result).to_s << " to " << params[:resultId].to_s << "</p>"
         nextId = show_resultid(result).to_s
         if nextId == params[:resultId].to_s
-          #link << "<p><strong>MATCHED: </strong>"
           nextAn = show_an(result).to_s
           nextDbId = show_dbid(result).to_s
           nextrId = params[:resultId].to_s
           nextHighlight = params[:q].to_s
-          #link << nextAn.to_s << " - " << nextDbId.to_s << " - " << nextrId.to_s << " - " << nextHighlight.to_s << "</p>"
           link = request.fullpath.split("/switch")[0].to_s + "/" + nextDbId.to_s + "/" + nextAn.to_s + "/?resultId=" + nextrId.to_s + "&highlight=" + nextHighlight.to_s
         end        
       end
@@ -205,10 +211,11 @@ module Blacklight::ArticlesHelperBehavior
 
   end
 
+  # calls the INFO API method
+  # counts how many limiters are available
   def get_info
+
     numLimiters = 0
-    #session[:debug_notes] = "Info is getting: " << @session_key << " and " << @auth_token << " and JSON"
-    #before editing this, check with Don and Michelle
     session[:info] = @connection.info(@session_key, @auth_token, :json).to_hash
     checkSessionCurrency
 
@@ -227,10 +234,6 @@ module Blacklight::ArticlesHelperBehavior
     session[:numLimiters] = numLimiters
   end
   
-  def debugNotes
-    return @debug_notes
-  end
-
   ############
   # File / Token Handling
   ############
@@ -274,7 +277,9 @@ module Blacklight::ArticlesHelperBehavior
     end
     return Rails.root.to_s + "/APIauthentication.txt"
   end
-  
+
+  # returns true if the authtoken stored in token.txt is valid
+  # false if otherwise
   def has_valid_auth_token?
     token = timeout = timestamp = ''
     if token_file_exists?
@@ -308,6 +313,8 @@ module Blacklight::ArticlesHelperBehavior
     return Time.at(timestamp.to_i)
   end
   
+  # writes an authentication token to token.txt.
+  # will create token.txt if it does not exist
   def writeAuthToken(auth_token)
     timeout = "1800"
     timestamp = Time.now.getutc.to_i + timeout.to_i
@@ -482,7 +489,7 @@ module Blacklight::ArticlesHelperBehavior
     return compact_pagination.html_safe
   end
         
-  #bottom pagination.  commented out lines remove 'last page' link
+  #bottom pagination.  commented out lines remove 'last page' link, as this is not currently supported by the API
   def show_pagination
     previous_link = ''
     next_link = ''
@@ -526,13 +533,9 @@ module Blacklight::ArticlesHelperBehavior
       end
     end
 
-    # change number back to 4 if we fix the 'final page' error
     if show_total_pages >= (show_current_page + 3)
       page_num_links << '<li class="disabled"><a href="">...</a></li>'
     end
-#          if show_total_pages >= (show_current_page + 3)
-#            page_num_links << '<li class=""><a href="' + request.fullpath.split("?")[0] + "?" + generate_next_url + "&eds_action=GoToPage(" + show_total_pages.to_s + ')">' + show_total_pages.to_s + '</a></li>'          
-#          end
 
     pagination_links = previous_link + next_link + page_num_links
     return pagination_links.html_safe
@@ -542,7 +545,7 @@ module Blacklight::ArticlesHelperBehavior
   # Facet / Limiter Constraints Box
   #############
         
-  #used when determining if the "constraints" partial should display
+  # used when determining if the "constraints" partial should display
   def query_has_facetfilters?(localized_params = params)
     (generate_next_url.scan("facetfilter[]=").length > 0) or (generate_next_url.scan("limiter[]=").length > 0)
   end
@@ -595,7 +598,7 @@ module Blacklight::ArticlesHelperBehavior
   # Facets / Limiters sidebar
   #############
 
-  # check to see if result has any facets.  crude, and I forget why I had to do a lenght check..
+  # check to see if result has any facets.  crude, and I forget why I had to do a length check..
   def has_eds_facets?
     (show_facets.length > 5)
   end
@@ -605,6 +608,7 @@ module Blacklight::ArticlesHelperBehavior
     return session[:numLimiters]
   end
         
+  # show limiters on the view
   def show_limiters
     limiterCount = 0;
     limitershtml = '';
@@ -642,8 +646,6 @@ module Blacklight::ArticlesHelperBehavior
     end
   end
 
-  # should probably implement a slider, but this will get most queries
-  # might consider a "custom" date range box as well
   def show_date_options
     dateString = ""
     timeObj = Time.new
@@ -666,8 +668,6 @@ module Blacklight::ArticlesHelperBehavior
         facet.each do |key, val|
           if key == "AvailableFacetValues"
             val.each do |facetValue|
-              # the LINK should NOT be escaped
-              # URL encode LINK - preserve the slashes without breaking the link - urlencode VALUES of parameters for escape character functionality
               facets = facets + '<li><a class="facet_select" href="' + request.fullpath.split("?")[0] + "?" + generate_next_url + "&eds_action=" + CGI.escape(facetValue['AddAction'].to_s) + '">' + facetValue['Value'].to_s.titleize + '</a> <span class="count">' + facetValue['Count'].to_s + '</li>'
             end
           end
@@ -683,6 +683,7 @@ module Blacklight::ArticlesHelperBehavior
   # Sort / Display / Record Count
   #############
 	
+  # pull sort options from INFO method
   def show_sort_options
     sortDropdown = "";
     if session[:info]['AvailableSearchCriteria']['AvailableSorts'].present?
@@ -693,6 +694,7 @@ module Blacklight::ArticlesHelperBehavior
     return sortDropdown.html_safe
   end
 
+  # shows currently selected view
   def show_view_option
     uri = Addressable::URI.parse(request.fullpath.split("?")[0] + "?" + generate_next_url)
     newUri = uri.query_values
@@ -704,7 +706,7 @@ module Blacklight::ArticlesHelperBehavior
     return view_option
   end
 
-  # question - why am I not looking in the "generate Next URL"?
+  # shows currently selected sort
   def show_current_sort
     allsorts = '';
     if params[:eds_action].present?
@@ -739,6 +741,7 @@ module Blacklight::ArticlesHelperBehavior
     return session[:results]['SearchResult']['Statistics']['TotalHits']
   end
 
+  # see if title is available given a single result
   def has_titlesource?(result)
     if result['Items'].present?
       result['Items'].each do |item|
@@ -750,12 +753,12 @@ module Blacklight::ArticlesHelperBehavior
     return false
   end
 
+  # display title given a single result
   def show_titlesource(result)
     source = ''
     flag = 0
     if result['Items'].present?
       result['Items'].each do |item|
-        # turn to case insensitive (also look at other matching in autors, title, etc.)
         if item['Group'].downcase == "src" and flag == 0
           source = processAPItags(item['Data'].to_s)
           flag = 1
@@ -766,6 +769,7 @@ module Blacklight::ArticlesHelperBehavior
   end
 
   def has_subjects?(result)
+
     if result['RecordInfo'].present?
       if result['RecordInfo']['BibRecord'].present?
         if result['RecordInfo']['BibRecord']['BibEntity'].present?
@@ -781,7 +785,8 @@ module Blacklight::ArticlesHelperBehavior
   end
 
   def show_subjects(result)
-    # check to see if there is an ITEM GROUP
+    # need to update this to look in granular data fields
+
     subject_array = []
     if result['RecordInfo'].present?
       if result['RecordInfo']['BibRecord'].present?

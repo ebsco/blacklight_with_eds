@@ -5,6 +5,8 @@ Add the following files in the noted locations:
     articles_helper.rb to app/helpers/articles_helper.rb
     articles_helper_behavior.rb to app/helpers/blacklight/articles_helper_behavior.rb
     articles_controller.rb to app/controllers/articles_controller.rb
+    APIauthentication.txt to root of blacklight
+    token.txt to root of blacklight
     
 CSS:
 

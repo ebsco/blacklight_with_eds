@@ -14,7 +14,7 @@
 
 <div class="pull-right">
       <% if params[:resultId].present? and session[:results].present? %>
-      <%= link_to "Back to Search Results", request.fullpath.split("/" + params[:dbid])[0] + "?" + generate_next_url %>
+      <%= link_to "Back to Search Results", request.fullpath.split("/" + params[:dbid])[0] + "?" + generate_next_url + "&fromDetail=y" %>
       |
       <% end %>
       <a href="/articles">New Search</a>

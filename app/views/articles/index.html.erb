@@ -19,7 +19,9 @@
 
 <% if has_search_parameters? %>
     <% options = generate_api_query(params) %>
-    <% search(options) %>
+	<% if params[:fromDetail] != 'y' %>
+	    <% search(options) %>
+	<% end %>
 <% end %>
 
 <script type="text/javascript">

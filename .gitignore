@@ -13,3 +13,7 @@
 # Ignore all logfiles and tempfiles.
 /log/*.log
 /tmp
+
+# Ignore the token and API authentication files
+/APIauthentication.txt
+/token.txt

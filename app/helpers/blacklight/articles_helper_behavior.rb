@@ -44,6 +44,10 @@ module Blacklight::ArticlesHelperBehavior
   # called at the beginning of every page load
   def eds_connect
 
+    # use session[:debugNotes] to store any debug text
+    # this will display if you render the _debug partial
+    session[:debugNotes] = ""
+
     # creates EDS API connection object, initializing it with application login credentials
     @connection = EDSApi::ConnectionHandler.new(2)
     File.open(auth_file_location,"r") {|f|
@@ -67,12 +71,14 @@ module Blacklight::ArticlesHelperBehavior
       if session[:session_key].include?('Error')
         @session_key = @connection.create_session(@auth_token)
         session[:session_key] = @session_key
+        get_info
       else 
         @session_key = session[:session_key]
       end
     else
       @session_key = @connection.create_session(@auth_token)
       session[:session_key] = @session_key
+      get_info
     end
 
     # at this point, we should have a valid authentication and session token
@@ -85,6 +91,8 @@ module Blacklight::ArticlesHelperBehavior
     currentSessionKey = @connection.show_session_token
     if currentSessionKey != get_session_key
       session[:session_key] = currentSessionKey
+      @session_key = currentSessionKey
+      get_info
     end
   end
 
@@ -147,7 +155,7 @@ module Blacklight::ArticlesHelperBehavior
   end
     
   # main search function.  accepts string to be tacked on to API endpoint URL
-  def search(apiquery)    
+  def search(apiquery)
     results = @connection.search(apiquery, @session_key, @auth_token, :json).to_hash
     
     #update session_key if new one was generated in the call
@@ -158,6 +166,7 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   def retrieve(dbid, an, highlight = "")
+
     record = @connection.retrieve(dbid, an, highlight, @session_key, @auth_token, :json).to_hash
 
     #update session_key if new one was generated in the call
@@ -604,7 +613,9 @@ module Blacklight::ArticlesHelperBehavior
   end
 
   def show_numlimiters
-    get_info
+    unless session[:numLimiters].present?
+      get_info
+    end
     return session[:numLimiters]
   end
         
@@ -1309,6 +1320,10 @@ module Blacklight::ArticlesHelperBehavior
 	
   def show_query_string
     return session[:results]['queryString']
+  end
+  
+  def debugNotes
+    return session[:debugNotes]
   end
 
 end

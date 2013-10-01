@@ -203,6 +203,7 @@ module Blacklight::ArticlesHelperBehavior
       search(options)
     end  
 
+    link = ""
     # generate the link for the target record
     if session[:results]['SearchResult']['Data']['Records'].present?
       session[:results]['SearchResult']['Data']['Records'].each do |result|

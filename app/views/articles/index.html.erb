@@ -19,7 +19,7 @@
 
 <% if has_search_parameters? %>
     <% options = generate_api_query(params) %>
-	<% if params[:fromDetail] != 'y' %>
+	<% unless params[:fromDetail] == 'y' and session[:results] %>
 	    <% search(options) %>
 	<% end %>
 <% end %>

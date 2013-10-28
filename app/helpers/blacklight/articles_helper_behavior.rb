@@ -309,6 +309,7 @@ module Blacklight::ArticlesHelperBehavior
     if Time.now.getutc.to_i < timestamp.to_i
       return true
     else
+      session[:debugNotes] << "<p>Looks like the auth token is out of date.. It expired at " << Time.at(timestamp.to_i).to_s << "</p>"
       return false
     end
   end
@@ -1324,7 +1325,7 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   def debugNotes
-    return session[:debugNotes]
+    return session[:debugNotes] << "<h4>API Calls</h4>" << @connection.debug_notes
   end
 
 end

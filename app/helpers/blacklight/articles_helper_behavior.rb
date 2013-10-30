@@ -413,7 +413,7 @@ module Blacklight::ArticlesHelperBehavior
   def show_hidden_field_tags
     hidden_fields = "";
     params.each do |key, value|
-      unless ((key == "search_field") or (key == "facetfilter") or (key == "pagenumber") or (key == "q") or (key == "dbid") or (key == "an"))
+      unless ((key == "search_field") or (key == "fromDetail") or (key == "facetfilter") or (key == "pagenumber") or (key == "q") or (key == "dbid") or (key == "an"))
         if (key == "eds_action")
           if ((value.scan(/addlimiter/).length > 0) or (value.scan(/removelimiter/).length > 0) or (value.scan(/setsort/).length > 0) or (value.scan(/SetResultsPerPage/).length > 0))
             hidden_fields << '<input type="hidden" name="' << key.to_s << '" value="' << value.to_s << '" />'

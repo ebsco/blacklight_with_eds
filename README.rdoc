@@ -1,4 +1,7 @@
 
+This repository contains a full Blacklight instance.  You can use it, or if you have an existing Blacklight instance, you can simply download these files and make the following changes:
+This instance requires authentication (via Blacklight) in order for access to be granted to the "articles" portion, as it provides full text access to articles.  Guest mode coming soon.
+
 Add the following files in the noted locations:
 
     articles FOLDER to app/views/articles
@@ -14,7 +17,7 @@ CSS:
 
 Append the following to Blacklight's Gemfile, then BUNDLE INSTALL:
 
-    gem "ebsco-discovery-service-api", "1.0.2"
+    gem "ebsco-discovery-service-api", "1.0.3"
     gem "addressable", "2.3.2"
     gem "htmlentities"
 
@@ -37,5 +40,3 @@ Finally, ensure that session information is stored in the DB, not in COOKIES.  F
 to
     
     (App)::Application.config.session_store :active_record_store
-    
-    

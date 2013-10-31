@@ -1,6 +1,5 @@
 
-This repository contains a full Blacklight instance.  You can use it, or if you have an existing Blacklight instance, you can simply download these files and make the following changes:
-This instance requires authentication (via Blacklight) in order for access to be granted to the "articles" portion, as it provides full text access to articles.  Guest mode coming soon.
+This repository contains a full Blacklight instance.  You can use it, or if you have an existing Blacklight instance, you can simply download these files and make the following changes. 
 
 Add the following files in the noted locations:
 
@@ -40,5 +39,7 @@ Finally, ensure that session information is stored in the DB, not in COOKIES.  F
 to
     
     (App)::Application.config.session_store :active_record_store
+
+This instance requires authentication (via Blacklight) in order for access to be granted to the "articles" portion, as it provides full text access to articles.  Guest mode coming soon.
 
 Finally, you'll need to have an EDS API profile in EBSCOadmin.  You can request this at eds@ebscohost.com, or you can create a new EDS API profile yourself using the PROFILE MAINTENANCE FEATURE.  Be sure you add content to your EDS API profile (via the DATABASES tab) so it will return results.  Create a userID and password to access your API profile in the AUTHENTICATION tab at the top of the screen.  Make sure the GROUP associated with the login you create is the group that contains your EDS API profile.  EBSCO Support (eds@ebscohost.com) can help you set up an EDS API profile and get a userID and password for it if you are unfamiliar with EBSCOadmin.

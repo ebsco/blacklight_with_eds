@@ -15,6 +15,8 @@
 #   limitations under the License.
 %>
 
+<% session[:current_url] = request.original_url %>
+
 <% eds_connect %>
 
 <% if has_search_parameters? %>

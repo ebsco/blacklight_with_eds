@@ -55,7 +55,13 @@ module Blacklight::ArticlesHelperBehavior
         @api_password = f.readline.strip
         @api_profile = f.readline.strip
     }
-    @connection.uid_init(@api_userid, @api_password, @api_profile)
+    if authenticated_user?
+      session[:debugNotes] << "<p>Sending NO as guest.</p>"
+      @connection.uid_init(@api_userid, @api_password, @api_profile, 'n')
+    else
+      session[:debugNotes] << "<p>Sending YES as guest.</p>"
+      @connection.uid_init(@api_userid, @api_password, @api_profile, 'y')      
+    end
 
     # generate a new authentication token if their isn't one or the one stored on server is invalid or expired
     if has_valid_auth_token?
@@ -76,7 +82,7 @@ module Blacklight::ArticlesHelperBehavior
         @session_key = session[:session_key]
       end
     else
-      @session_key = @connection.create_session(@auth_token)
+      @session_key = @connection.create_session(@auth_token, 'n')
       session[:session_key] = @session_key
       get_info
     end
@@ -163,6 +169,7 @@ module Blacklight::ArticlesHelperBehavior
 
     #results are stored in the session to facilitate faster navigation between detailed records and results list without needed a new API call
     session[:results] = results
+    session[:apiquery] = apiquery
   end
   
   def retrieve(dbid, an, highlight = "")
@@ -245,8 +252,18 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   ############
-  # File / Token Handling
+  # File / Token Handling / End User Auth
   ############
+
+  def authenticated_user?
+    if user_signed_in?
+      session[:debugNotes] << "<p>Checking .. looks like you're logged in.</p>"
+      return true
+    end
+    session[:debugNotes] << "<p>Checking .. looks like you're NOT logged in.</p>"
+    # need to define function for detecting on-campus IP ranges
+    return false
+  end
 
   def clear_session_key
     session.delete(:session_key)
@@ -749,6 +766,17 @@ module Blacklight::ArticlesHelperBehavior
   ###############
   # Results List
   ###############
+
+  def has_restricted_access?(result)
+    if result['Header']['AccessLevel'].present?
+      if result['Header']['AccessLevel'] == '1'
+        session[:debugNotes] << "..checking access: " << result['Header']['AccessLevel'].to_s << "!.."
+        return true
+      end
+    end
+    session[:debugNotes] << "..checking access: " << result['Header']['AccessLevel'].to_s << "!.."
+    return false
+  end
 
   def show_total_hits
     return session[:results]['SearchResult']['Statistics']['TotalHits']

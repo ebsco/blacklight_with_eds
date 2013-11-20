@@ -27,6 +27,34 @@ Edit config/routes.rb to include:
     match 'articles/:dbid/:an/fulltext' => 'articles#fulltext', :constraints  => { :an => /[^\/]+/ }
     match 'articles/switch/' => 'articles#recordSwitch'
     
+Edit app/controllers/application_controller.rb to include:
+
+    def after_sign_in_path_for(resource)
+      if session[:session_key].present?
+        connection = EDSApi::ConnectionHandler.new(2)
+        connection.end_session(session[:session_key])
+        session[:session_key] = nil
+      end
+      if session[:results].present?
+        session[:results] = nil
+      end
+      if session[:current_url].present?
+        session[:current_url]
+      end
+    end
+    
+    def after_sign_out_path_for(resource)
+      if session[:session_key].present?
+        connection = EDSApi::ConnectionHandler.new(2)
+        connection.end_session(session[:session_key])
+        session[:session_key] = nil
+      end
+      if session[:results].present?
+        session[:results] = nil
+      end
+      root_path
+    end
+
 Finally, ensure that session information is stored in the DB, not in COOKIES.  From the command line...
 
     rake db:sessions:create

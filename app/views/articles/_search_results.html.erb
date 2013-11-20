@@ -71,7 +71,12 @@
   <dd class="blacklight-ill"><%= show_ill(result) %></dd>  
   <% end %>
 
-</dl>  
+</dl>
+<% else %>
+    <dl class="dl-horizontal dl-invert">
+  <dt class="blacklight-author_display">Note:</dt>
+  <dd class="blacklight-author_display">This result cannot be displayed unless you are <%= link_to "logged in", new_user_session_path %>.</dd>
+    </dl>
 <% end %>
 </div>
     

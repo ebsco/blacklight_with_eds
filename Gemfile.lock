@@ -110,6 +110,8 @@ GEM
       json (~> 1.4)
     rsolr (1.0.8)
       builder (>= 2.1.2)
+    sanitize (2.0.6)
+      nokogiri (>= 1.4.4)
     sass (3.2.7)
     sass-rails (3.2.6)
       railties (~> 3.2.0)
@@ -150,6 +152,7 @@ DEPENDENCIES
   htmlentities
   jquery-rails
   rails (= 3.2.11)
+  sanitize
   sass-rails (~> 3.2.3)
   sqlite3
   uglifier (>= 1.0.3)

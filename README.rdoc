@@ -19,6 +19,7 @@ Append the following to Blacklight's Gemfile, then BUNDLE INSTALL:
     gem "ebsco-discovery-service-api", "1.0.3"
     gem "addressable", "2.3.2"
     gem "htmlentities"
+    gem "Sanitize"
 
 Edit config/routes.rb to include:
 

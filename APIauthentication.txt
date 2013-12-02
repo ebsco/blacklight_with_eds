@@ -1,3 +1,3 @@
-blacklight_demo
-bl@ckl1ght_demo
-blacklight
+YourAPIuserID
+YourAPIpassword
+YourAPIprofileID

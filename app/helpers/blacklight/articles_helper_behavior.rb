@@ -1153,7 +1153,7 @@ module Blacklight::ArticlesHelperBehavior
     if result['Header'].present?
       if result['Header']['DbId'].present?
         if result['Header']['An'].present?
-          link << 'articles/' << result['Header']['DbId'].to_s << '/' << result['Header']['An'] << '/'
+          link << 'articles/' << result['Header']['DbId'].to_s << '/' << url_encode(result['Header']['An']) << '/'
           if resultId.to_i > "0".to_i and highlight != "" 
             link << '?resultId=' << resultId.to_s << '&highlight=' << highlight.to_s
           elsif resultId.to_i > "0".to_i

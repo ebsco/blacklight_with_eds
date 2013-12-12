@@ -14,7 +14,11 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 %>
-
+<%
+  params.each do |k,v|
+    params[k] = h(v)
+  end
+%>
 <% session[:current_url] = request.original_url %>
 
 <% eds_connect %>

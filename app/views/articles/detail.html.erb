@@ -1,3 +1,8 @@
+<%
+  params.each do |k,v|
+    params[k] = h(v)
+  end
+%>
 <% session[:current_url] = request.original_url %>
 
 <% eds_connect %>

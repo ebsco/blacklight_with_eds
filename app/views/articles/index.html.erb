@@ -14,17 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 %>
-<%
-  params.each do |k,v|
-    params[k] = h(v)
-  end
-%>
+
 <% session[:current_url] = request.original_url %>
 
 <% eds_connect %>
 
-<% if has_search_parameters? %>
-    <% options = generate_api_query(params) %>
+<% if has_search_parameters?
+       clean_params = deep_clean(params)
+       params = clean_params
+       options = generate_api_query(params) %>
 	<% unless params[:fromDetail] == 'y' and session[:results] %>
 	    <% search(options) %>
 	<% end %>
@@ -78,5 +76,5 @@
     <% end %>
 
 </div>
-<%# render :partial=>'debug' %>
+<%= render :partial=>'debug' %>
 <div class="modal">Loading...</div>

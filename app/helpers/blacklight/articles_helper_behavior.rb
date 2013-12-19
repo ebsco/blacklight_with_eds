@@ -30,6 +30,34 @@ module Blacklight::ArticlesHelperBehavior
   def html_unescape(text)
     return CGI.unescape(text)
   end
+  
+  def deep_clean(parameters)
+    session[:debugNotes] << "<br /><br /><blockquote>In iteration.."
+    tempArray = Array.new;
+    parameters.each do |k,v|    
+      session[:debugNotes] << "Key is " << k.to_s << " and Val is " << v.to_s << ".."
+      unless v.nil?
+        if v.is_a?(Array)
+          session[:debugNotes] << "Looks like Val is an array, so cleaning " << k.to_s << ".."
+          deeperClean = deep_clean(v)
+          session[:debugNotes] << "..and " << k.to_s << " is now clean..<br />"
+          parameters[k] = deeperClean
+        else
+          session[:debugNotes] << "Cleaning " << k.to_s << "..done.<br />"
+          parameters[k] = h(v)
+        end
+      else
+          clean_key = h(k)
+          tempArray.push(clean_key)
+      end
+    end
+    unless tempArray.empty?
+      session[:debugNotes] << "Found and cleaned an array, passing it up."
+      parameters = tempArray
+    end
+    session[:debugNotes] << "</blockquote>"
+    return parameters
+  end
 
   # cleans response from EBSCO API
   def processAPItags(apiString)
@@ -257,10 +285,8 @@ module Blacklight::ArticlesHelperBehavior
 
   def authenticated_user?
     if user_signed_in?
-      session[:debugNotes] << "<p>Checking .. looks like you're logged in.</p>"
       return true
     end
-    session[:debugNotes] << "<p>Checking .. looks like you're NOT logged in.</p>"
     # need to define function for detecting on-campus IP ranges
     return false
   end
@@ -770,11 +796,9 @@ module Blacklight::ArticlesHelperBehavior
   def has_restricted_access?(result)
     if result['Header']['AccessLevel'].present?
       if result['Header']['AccessLevel'] == '1'
-        session[:debugNotes] << "..checking access: " << result['Header']['AccessLevel'].to_s << "!.."
         return true
       end
     end
-    session[:debugNotes] << "..checking access: " << result['Header']['AccessLevel'].to_s << "!.."
     return false
   end
 

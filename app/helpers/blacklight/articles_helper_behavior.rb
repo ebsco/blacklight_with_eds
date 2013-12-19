@@ -32,18 +32,13 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   def deep_clean(parameters)
-    session[:debugNotes] << "<br /><br /><blockquote>In iteration.."
     tempArray = Array.new;
     parameters.each do |k,v|    
-      session[:debugNotes] << "Key is " << k.to_s << " and Val is " << v.to_s << ".."
       unless v.nil?
         if v.is_a?(Array)
-          session[:debugNotes] << "Looks like Val is an array, so cleaning " << k.to_s << ".."
           deeperClean = deep_clean(v)
-          session[:debugNotes] << "..and " << k.to_s << " is now clean..<br />"
           parameters[k] = deeperClean
         else
-          session[:debugNotes] << "Cleaning " << k.to_s << "..done.<br />"
           parameters[k] = h(v)
         end
       else
@@ -52,10 +47,8 @@ module Blacklight::ArticlesHelperBehavior
       end
     end
     unless tempArray.empty?
-      session[:debugNotes] << "Found and cleaned an array, passing it up."
       parameters = tempArray
     end
-    session[:debugNotes] << "</blockquote>"
     return parameters
   end
 

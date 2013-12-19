@@ -1,13 +1,12 @@
-<%
-  params.each do |k,v|
-    params[k] = h(v)
-  end
-%>
 <% session[:current_url] = request.original_url %>
 
 <% if authenticated_user? %>
 
 <% eds_connect %>
+<%
+       clean_params = deep_clean(params)
+       params = clean_params
+%>
 <% recordArray = retrieve(params[:dbid].to_s,params[:an].to_s) %>
 <% if recordArray['Record'].present? %>
 <% record = recordArray['Record'] %>

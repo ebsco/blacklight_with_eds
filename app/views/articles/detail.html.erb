@@ -1,11 +1,11 @@
-<%
-  params.each do |k,v|
-    params[k] = h(v)
-  end
-%>
+
 <% session[:current_url] = request.original_url %>
 
 <% eds_connect %>
+<%
+  clean_params = deep_clean(params)
+  params = clean_params
+%>
 <% unless session[:results].present? %>
  <% if session[:apiquery].present? %>
   <% search(session[:apiquery]) %>

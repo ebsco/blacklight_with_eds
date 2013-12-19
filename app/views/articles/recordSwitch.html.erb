@@ -1,8 +1,7 @@
-<%
-  params.each do |k,v|
-    params[k] = h(v)
-  end
-%>
 <% eds_connect %>
+<%
+       clean_params = deep_clean(params)
+       params = clean_params
+%>
 <meta http-equiv="REFRESH" content="0;url=<%= switch_link(params,generate_next_url) %>" />
 <h3>Loading...</h3>

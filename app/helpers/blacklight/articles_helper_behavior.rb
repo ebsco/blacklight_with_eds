@@ -194,9 +194,14 @@ module Blacklight::ArticlesHelperBehavior
   end
   
   def retrieve(dbid, an, highlight = "")
-
+    debugNotes << "HIGHLIGHTBEFORE:" << highlight.to_s
+    highlight.downcase!
+    highlight.gsub! ',and,',','
+    highlight.gsub! ',or,',','
+    highlight.gsub! ',not,',','
+    debugNotes << "HIGHLIGHTAFTER: " << highlight.to_s
     record = @connection.retrieve(dbid, an, highlight, @session_key, @auth_token, :json).to_hash
-
+    debugNotes << "RECORD: " << record.to_s
     #update session_key if new one was generated in the call
     checkSessionCurrency
 
@@ -1141,7 +1146,11 @@ module Blacklight::ArticlesHelperBehavior
       return true
     elsif has_html?(result)
       return true
+    elsif has_smartlink?(result)
+      return true
     elsif has_fulltext?(result)
+      return true
+    elsif has_ebook?(result)
       return true
     end
     return false
@@ -1167,6 +1176,7 @@ module Blacklight::ArticlesHelperBehavior
 
   def show_detail_link(result, resultId = "0", highlight = "")
     link = ""
+    highlight.gsub! '&quot;', '%22'
     if result['Header'].present?
       if result['Header']['DbId'].present?
         if result['Header']['An'].present?
@@ -1188,8 +1198,9 @@ module Blacklight::ArticlesHelperBehavior
     if has_pdf?(result)
       return show_pdf_title_link(result)
     elsif has_html?(result)
-      # this should point to detailed record when implemented
       return show_detail_link(result)
+    elsif has_smartlink?(result)
+      return show_smartlink_title_link(result)
     elsif has_fulltext?(result)
       return best_customlink(result)
     end
@@ -1202,6 +1213,8 @@ module Blacklight::ArticlesHelperBehavior
       link = '<a href="' + show_pdf_title_link(result) + '">PDF Full Text</a>'
     elsif has_html?(result)
       link = '<a href="' + show_best_fulltext_link(result) + '" target="_blank">HTML Full Text</a>'
+    elsif has_smartlink?(result)
+      link = '<a href="' + show_smartlink_title_link(result) + '">Linked Full Text</a>'
     elsif has_fulltext?(result)
       link = best_customlink_detail(result)
     else
@@ -1249,6 +1262,34 @@ module Blacklight::ArticlesHelperBehavior
     return false
   end
   
+  def has_smartlink?(result)
+    if result['FullText'].present?
+      if result['FullText']['Links'].present?
+        result['FullText']['Links'].each do |smartLink|
+          if smartLink['Type'] == "other"
+            return true
+          end
+        end
+      end
+    end
+    return false  
+  end
+  
+  def has_ebook?(result)
+    if result['FullText'].present?
+      if result['FullText']['Links'].present?
+        result['FullText']['Links'].each do |smartLink|
+          if smartLink['Type'] == "ebook-pdf"
+            return true
+          elsif smartLink['Type'] == "ebook-epub"
+            return true
+          end
+        end
+      end
+    end
+    return false      
+  end
+  
   def show_plink(result)
     plink = ''
     if result['PLink'].present?
@@ -1266,12 +1307,60 @@ module Blacklight::ArticlesHelperBehavior
     return new_link
   end
 
+  def show_smartlink_title_link(result)
+    title_pdf_link = ''
+    if result['Header']['DbId'].present? and result['Header']['An'].present?
+      title_pdf_link << request.fullpath.split("?")[0] << "/" << result['Header']['DbId'].to_s << "/" << result['Header']['An'].to_s << "/fulltext"
+    end
+    new_link = Addressable::URI.unencode(title_pdf_link.to_s)
+    return new_link    
+  end
+
+  def show_ebook_title_link(result)
+    title_pdf_link = ''
+    if result['Header']['DbId'].present? and result['Header']['An'].present?
+      title_pdf_link << request.fullpath.split("?")[0] << "/" << result['Header']['DbId'].to_s << "/" << result['Header']['An'].to_s << "/fulltext"
+    end
+    new_link = Addressable::URI.unencode(title_pdf_link.to_s)
+    return new_link    
+  end
+
   def show_pdf_link(record)
     pdf_link = ''
     if record['FullText'].present?
       if record['FullText']['Links'].present?
         record['FullText']['Links'].each do |link|
           if link['Type'] == "pdflink"
+            pdf_link << link['Url']
+          end
+        end
+      end
+    end
+    return pdf_link
+  end
+
+  def show_smartlink(record)
+    pdf_link = ''
+    if record['FullText'].present?
+      if record['FullText']['Links'].present?
+        record['FullText']['Links'].each do |link|
+          if link['Type'] == "other"
+            pdf_link << link['Url']
+          end
+        end
+      end
+    end
+    return pdf_link
+  end
+
+  def show_ebook_link(record)
+    pdf_link = ''
+    if record['FullText'].present?
+      if record['FullText']['Links'].present?
+        record['FullText']['Links'].each do |link|
+          if link['Type'] == "ebook-pdf"
+            pdf_link << link['Url']
+          elsif link['Type'] == "ebook-epub"
             pdf_link << link['Url']
           end
         end

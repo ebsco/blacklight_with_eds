@@ -10,4 +10,6 @@
   <p>Session_Token: <%= session[:session_key] %></p>
   <h5>Debug Notes</h5>
   <p>Notes: <%= debugNotes.html_safe %></p>
+  <h5>Session Dump</h5>
+  <p><%= session.to_s %></p>
 </div>

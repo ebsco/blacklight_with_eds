@@ -62,6 +62,10 @@
     <%= link_to "PDF Full Text", show_pdf_title_link(result) %>
   <% elsif has_html?(result) %>
     <%= link_to "HTML Full Text", show_best_fulltext_link(result), :target => "_blank" %>
+  <% elsif has_smartlink?(result) %>
+    <%= link_to "Linked Full Text", show_smartlink_title_link(result) %>
+  <% elsif has_ebook?(result) %>
+    <%= link_to "eBook Full Text", show_ebook_title_link(result) %>
   <% else %>
     <%= show_best_fulltext_link_detail(result) %>
   <% end %>

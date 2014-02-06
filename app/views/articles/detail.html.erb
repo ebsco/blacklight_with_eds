@@ -3,6 +3,7 @@
 
 <% eds_connect %>
 <%
+  recordArray = retrieve(params[:dbid].to_s,params[:an].to_s,termsToHighlight(params[:highlight]))
   clean_params = deep_clean(params)
   params = clean_params
 %>
@@ -11,7 +12,6 @@
   <% search(session[:apiquery]) %>
  <% end %>
 <% end %>
-<% recordArray = retrieve(params[:dbid].to_s,params[:an].to_s,termsToHighlight(params[:highlight])) %>
 <% if recordArray['Record'].present? %>
 <% record = recordArray['Record'] %>
 <% end %>
@@ -107,6 +107,13 @@
 	    <% if has_html?(record) %>
 	      <% fulltextlinks.push(link_to("HTML Full Text", "#fulltext")) %>
 	    <% end %>
+	    <% if has_smartlink?(record) %>
+	      <% fulltextlinks.push(link_to("Linked Full Text", show_smartlink(record))) %>
+	    <% end %>
+	    <% if has_ebook?(record) %>
+	      <% fulltextlinks.push(link_to("eBook Full Text", show_ebook_link(record))) %>
+	    <% end %>
+	    
 	    <% if has_fulltext?(record) %>
 	      <% fulltextlinks.push(show_best_fulltext_link_detail(record)) %>
 	    <% end %>

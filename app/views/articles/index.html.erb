@@ -19,13 +19,11 @@
 
 <% eds_connect %>
 
-<%
-       options = generate_api_query(params)
-       clean_params = deep_clean(params)
-       params = clean_params
-%>
-
 <% if has_search_parameters? %>
+       <% options = generate_api_query(params) %>
+       <% clean_params = deep_clean(params) %>
+       <% params = clean_params %>
+
 	<% unless params[:fromDetail] == 'y' and session[:results] %>
 	    <% search(options) %>
 	<% end %>

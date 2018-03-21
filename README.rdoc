@@ -1,3 +1,9 @@
+This repo is deprecated. For other code for Blacklight and EDS, see:
+* https://github.com/ebsco/blacklight_eds_gem
+* https://github.com/ebsco/eds_blacklight_search_app
+
+----------------
+
 
 This repository contains a full Blacklight instance.  You can use it, or if you have an existing Blacklight instance, you can simply download these files and make the following changes. 
 
